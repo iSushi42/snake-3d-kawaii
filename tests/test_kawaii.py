@@ -761,5 +761,26 @@ def test_title_screen_redesign():
     )
 
 
+def test_pause_screen_modal():
+    import pygame
+    from snake.kawaii_config import SCREEN_WIDTH, SCREEN_HEIGHT
+    from snake.kawaii_hud import KawaiiHUD
+    from snake.kawaii_textures import TextureManager
+    from snake.kawaii_game import KawaiiSnakeGame
 
+    textures = TextureManager()
+    hud = KawaiiHUD(textures)
+    surface = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
 
+    # Test pause screen rendering with default index, 0 (Continuer), and 1 (Quitter)
+    hud.draw_pause_screen(surface)
+    hud.draw_pause_screen(surface, selected_index=0)
+    hud.draw_pause_screen(surface, selected_index=1)
+
+    # Verify pause state behavior on KawaiiSnakeGame
+    game = KawaiiSnakeGame()
+    assert not game.is_paused
+    game.toggle_pause()
+    assert game.is_paused
+    game.toggle_pause()
+    assert not game.is_paused

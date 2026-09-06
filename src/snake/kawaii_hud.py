@@ -812,25 +812,78 @@ class KawaiiHUD:
             p_surf = self.font_prompt.render(prompt_text, True, (255, 255, 255))
             surface.blit(p_surf, (cx + (cw - p_surf.get_width()) // 2, by + 12))
 
-    def draw_pause_screen(self, surface: pygame.Surface):
+    def draw_pause_screen(self, surface: pygame.Surface, selected_index: int = 0):
+        """Displays cozy Pause modal offering to Continue (resume) or Quit (to Title Screen)."""
         veil = pygame.Surface((SCREEN_WIDTH, VIEWPORT_HEIGHT), pygame.SRCALPHA)
-        veil.fill((250, 244, 252, 190))
+        veil.fill((250, 244, 252, 195))
         surface.blit(veil, (0, 0))
 
-        cw, ch = 440, 180
+        cw, ch = 500, 270
         cx = (SCREEN_WIDTH - cw) // 2
         cy = (VIEWPORT_HEIGHT - ch) // 2
         card_rect = pygame.Rect(cx, cy, cw, ch)
-        pygame.draw.rect(surface, (255, 255, 255), card_rect, border_radius=22)
-        pygame.draw.rect(surface, COLOR_STATUS_BAR_BORDER, card_rect, width=2, border_radius=22)
+        pygame.draw.rect(surface, (255, 255, 255), card_rect, border_radius=24)
+        pygame.draw.rect(surface, COLOR_STATUS_BAR_BORDER, card_rect, width=2, border_radius=24)
 
-        title = self.font_title_large.render("Pause Dodo", True, (160, 130, 215))
+        # Title
+        title = self.font_title_large.render("✧ PAUSE DODO ✧", True, (160, 130, 215))
         tx = (SCREEN_WIDTH - title.get_width()) // 2
-        surface.blit(title, (tx, cy + 40))
+        surface.blit(title, (tx, cy + 22))
 
-        sub = self.font_sub.render("Appuyez sur [ P ] ou [ Espace ] pour réveiller Bébé", True, COLOR_TEXT_MUTED)
+        # Subtitle
+        sub = self.font_sub.render("Partie suspendue • Bébé fait un petit somme", True, (150, 140, 165))
         sx = (SCREEN_WIDTH - sub.get_width()) // 2
-        surface.blit(sub, (sx, cy + 105))
+        surface.blit(sub, (sx, cy + 62))
+
+        # Two interactive buttons: 0 = Continuer, 1 = Quitter vers le Title Screen
+        pause_items = [
+            {"title": "Continuer la partie", "key": "[ Échap ]"},
+            {"title": "Quitter vers l'Écran Titre", "key": "[ Q ]"},
+        ]
+
+        bw, bh = 420, 48
+        bx = cx + (cw - bw) // 2
+        start_by = cy + 100
+        gap = 14
+
+        for idx, item in enumerate(pause_items):
+            by = start_by + idx * (bh + gap)
+            b_rect = pygame.Rect(bx, by, bw, bh)
+            is_sel = (idx == selected_index)
+
+            if is_sel:
+                pygame.draw.rect(surface, (255, 138, 165), b_rect, border_radius=18)
+                pygame.draw.rect(surface, (245, 95, 125), b_rect, width=2, border_radius=18)
+
+                pulse = int(math.sin(pygame.time.get_ticks() / 150.0) * 3)
+                cursor = self.font_prompt.render("▶", True, (255, 255, 255))
+                surface.blit(cursor, (bx + 18 + pulse, by + 13))
+
+                t_surf = self.font_prompt.render(item["title"], True, (255, 255, 255))
+                k_surf = self.font_label.render(item["key"], True, (250, 100, 135))
+
+                k_rect = pygame.Rect(bx + bw - 82, by + 12, 68, 24)
+                pygame.draw.rect(surface, (255, 255, 255), k_rect, border_radius=12)
+                surface.blit(k_surf, (k_rect.x + (k_rect.width - k_surf.get_width()) // 2, k_rect.y + 5))
+            else:
+                pygame.draw.rect(surface, (255, 250, 252), b_rect, border_radius=18)
+                pygame.draw.rect(surface, (245, 215, 225), b_rect, width=1, border_radius=18)
+
+                dot = self.font_prompt.render("✦", True, (220, 180, 205))
+                surface.blit(dot, (bx + 18, by + 13))
+
+                t_surf = self.font_prompt.render(item["title"], True, (85, 75, 95))
+                k_surf = self.font_label.render(item["key"], True, (155, 145, 170))
+
+                k_rect = pygame.Rect(bx + bw - 82, by + 12, 68, 24)
+                pygame.draw.rect(surface, (252, 242, 247), k_rect, border_radius=12)
+                surface.blit(k_surf, (k_rect.x + (k_rect.width - k_surf.get_width()) // 2, k_rect.y + 5))
+
+            surface.blit(t_surf, (bx + 46, by + 13))
+
+        # Helper hint centered inside bottom of card
+        hint = self.font_label.render("[ ↑ / ↓ ] Choisir   •   [ Entrée ] Valider   •   [ Échap ] Reprendre", True, (150, 140, 165))
+        surface.blit(hint, (cx + (cw - hint.get_width()) // 2, cy + ch - 26))
 
 
 # Backwards compatibility alias

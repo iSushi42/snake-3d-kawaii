@@ -43,6 +43,7 @@ def main():
     in_start_menu = True
     start_menu_view = "main"  # "main" or "high_scores"
     menu_selected_idx = 0     # 0: Classique, 1: Contre-la-montre, 2: High score
+    pause_selected_idx = 0    # 0: Continuer, 1: Quitter
     was_dead = False
     last_tick_second = -1
 
@@ -57,8 +58,8 @@ def main():
                 running = False
 
             elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                mx, my = event.pos
                 if in_start_menu:
-                    mx, my = event.pos
                     if start_menu_view == "high_scores":
                         # Click on return button (btn_w=520, btn_h=46)
                         bx = (SCREEN_WIDTH - 520) // 2
@@ -86,13 +87,49 @@ def main():
                                     start_menu_view = "high_scores"
                                     audio.play_tick()
                                 break
+                elif not game.is_dead and game.is_paused:
+                    # Click on pause modal buttons: 0 = Continuer, 1 = Quitter
+                    bx = (SCREEN_WIDTH - 500) // 2 + (500 - 420) // 2
+                    start_by = ((VIEWPORT_HEIGHT - 270) // 2) + 100
+                    for idx in range(2):
+                        by = start_by + idx * (48 + 14)
+                        if bx <= mx <= bx + 420 and by <= my <= by + 48:
+                            pause_selected_idx = idx
+                            if idx == 0:
+                                game.toggle_pause()
+                                audio.play_tick()
+                            elif idx == 1:
+                                game.is_paused = False
+                                in_start_menu = True
+                                start_menu_view = "main"
+                                audio.play_tick()
+                            break
 
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
-                    if in_start_menu and start_menu_view == "high_scores":
-                        start_menu_view = "main"
+                    if in_start_menu:
+                        if start_menu_view == "high_scores":
+                            start_menu_view = "main"
+                            audio.play_tick()
+                        else:
+                            running = False
+                    elif game.is_dead:
+                        if not game.initials_submitted:
+                            game.restart()
+                            last_tick_second = -1
+                        else:
+                            in_start_menu = True
+                            start_menu_view = "main"
+                            audio.play_tick()
+                    elif game.is_paused:
+                        # Resume when pressing Escape in pause
+                        game.toggle_pause()
+                        audio.play_tick()
                     else:
-                        running = False
+                        # In-game: Pause game when pressing Escape
+                        game.toggle_pause()
+                        pause_selected_idx = 0
+                        audio.play_tick()
 
                 # Audio mute toggle (B = Bruit / Musique)
                 elif event.key == pygame.K_b:
@@ -143,9 +180,6 @@ def main():
                             game.remove_initial_char()
                         elif event.key in (pygame.K_RETURN, pygame.K_KP_ENTER):
                             game.submit_initials()
-                        elif event.key == pygame.K_ESCAPE:
-                            game.restart()
-                            last_tick_second = -1
                         elif event.unicode and event.unicode.isalpha() and len(event.unicode) == 1:
                             game.add_initial_char(event.unicode)
                     else:
@@ -159,20 +193,48 @@ def main():
                             game.restart(GameMode.TIME_ATTACK)
                             last_tick_second = -1
 
-                # Pause toggle
-                elif not in_start_menu and not game.is_dead and event.key in (pygame.K_p, pygame.K_SPACE):
+                # PAUSE CONTROLS
+                elif game.is_paused:
+                    if event.key in (pygame.K_UP, pygame.K_z, pygame.K_w):
+                        pause_selected_idx = (pause_selected_idx - 1) % 2
+                        audio.play_tick()
+                    elif event.key in (pygame.K_DOWN, pygame.K_s):
+                        pause_selected_idx = (pause_selected_idx + 1) % 2
+                        audio.play_tick()
+                    elif event.key in (pygame.K_RETURN, pygame.K_KP_ENTER, pygame.K_SPACE):
+                        if pause_selected_idx == 0:
+                            game.toggle_pause()
+                            audio.play_tick()
+                        else:
+                            game.is_paused = False
+                            in_start_menu = True
+                            start_menu_view = "main"
+                            audio.play_tick()
+                    elif event.key == pygame.K_q:
+                        game.is_paused = False
+                        in_start_menu = True
+                        start_menu_view = "main"
+                        audio.play_tick()
+                    elif event.key == pygame.K_p:
+                        game.toggle_pause()
+                        audio.play_tick()
+
+                # Pause toggle from gameplay with P
+                elif event.key == pygame.K_p:
                     game.toggle_pause()
+                    pause_selected_idx = 0
+                    audio.play_tick()
 
                 # Camera switch
-                elif not in_start_menu and event.key == pygame.K_v:
+                elif event.key == pygame.K_v:
                     game.toggle_view_mode()
 
                 # Minimap toggle
-                elif not in_start_menu and event.key == pygame.K_m:
+                elif event.key == pygame.K_m:
                     game.toggle_minimap()
 
                 # ZQSD and arrow controls
-                elif not in_start_menu and not game.is_dead and not game.is_paused:
+                elif not game.is_dead and not game.is_paused:
                     # Turn Left: Q (AZERTY), A (QWERTY), Left Arrow
                     if event.key in (pygame.K_q, pygame.K_a, pygame.K_LEFT):
                         game.turn_left()
@@ -365,7 +427,7 @@ def main():
                 initials_submitted=game.initials_submitted,
             )
         elif game.is_paused:
-            hud.draw_pause_screen(screen)
+            hud.draw_pause_screen(screen, selected_index=pause_selected_idx)
 
         pygame.display.flip()
 
