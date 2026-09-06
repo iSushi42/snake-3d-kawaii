@@ -615,15 +615,16 @@ def test_death_screen_renders_initials_input_and_nom_column():
 
 
 def test_pacifier_speed_reduction_bounds():
-    from snake.kawaii_config import DOOM_BASE_SPEED, DOOM_SPEED_INCREMENT
+    from snake.kawaii_config import DOOM_BASE_SPEED, DOOM_SPEED_INCREMENT, THEMES
     from snake.kawaii_game import KawaiiSnakeGame
 
     game = KawaiiSnakeGame()
     # At start: score 0, speed level 1
     assert game.speed_level == 1
+    assert game.theme_index == 0
     assert game.current_speed == DOOM_BASE_SPEED
 
-    # Level 1 pacifier pickup: should stay level 1 (cannot go below level 1)
+    # Level 1 pacifier pickup: should stay level 1 and cannot drop below base speed
     game.pacifier_active = True
     game.pacifier_timer = 5.0
     game.pacifier_x, game.pacifier_y = 8, 8
@@ -631,34 +632,43 @@ def test_pacifier_speed_reduction_bounds():
     game.update(0.01)
     assert game.pacifier_eaten
     assert game.speed_level == 1
+    assert game.theme_index == 0
     assert game.speed_reduction == 0
     assert game.current_speed == DOOM_BASE_SPEED
 
-    # Level 5 (score 20): pacifier drops by min(3, 5 - 1) = 3 -> Level 2
+    # Level 5 (score 20): pacifier drops speed by 1, but player level and theme do NOT change
     game.score = 20
     game.speed_reduction = 0
     assert game.speed_level == 5
-    game.pacifier_active = True
-    game.pacifier_timer = 5.0
-    game.pacifier_x, game.pacifier_y = int(game.head_x), int(game.head_y)
-    game.update(0.01)
-    assert game.pacifier_eaten
-    assert game.soothe_levels_dropped == 3
-    assert game.speed_level == 2
-    assert game.current_speed == DOOM_BASE_SPEED + 1 * DOOM_SPEED_INCREMENT
+    expected_theme = (5 - 1) % len(THEMES)
+    assert game.theme_index == expected_theme
+    initial_speed = game.current_speed
+    assert initial_speed == DOOM_BASE_SPEED + 4 * DOOM_SPEED_INCREMENT
 
-    # Level 3 (score 10, no reduction): drops by 2 -> Level 1
-    game.score = 10
-    game.speed_reduction = 0
-    assert game.speed_level == 3
     game.pacifier_active = True
     game.pacifier_timer = 5.0
     game.pacifier_x, game.pacifier_y = int(game.head_x), int(game.head_y)
     game.update(0.01)
     assert game.pacifier_eaten
-    assert game.soothe_levels_dropped == 2
-    assert game.speed_level == 1
-    assert game.current_speed == DOOM_BASE_SPEED
+    assert game.soothe_levels_dropped == 1
+    assert game.speed_reduction == 1
+    # Level and theme must remain unchanged!
+    assert game.speed_level == 5
+    assert game.theme_index == expected_theme
+    # Speed reduced by exactly 1 increment
+    assert game.current_speed == DOOM_BASE_SPEED + 3 * DOOM_SPEED_INCREMENT
+
+    # Second pacifier pickup at Level 5 drops speed by another 1
+    game.pacifier_active = True
+    game.pacifier_timer = 5.0
+    game.pacifier_x, game.pacifier_y = int(game.head_x), int(game.head_y)
+    game.update(0.01)
+    assert game.pacifier_eaten
+    assert game.soothe_levels_dropped == 1
+    assert game.speed_reduction == 2
+    assert game.speed_level == 5
+    assert game.theme_index == expected_theme
+    assert game.current_speed == DOOM_BASE_SPEED + 2 * DOOM_SPEED_INCREMENT
 
 
 def test_pacifier_lifetime_and_timeout():
@@ -784,3 +794,55 @@ def test_pause_screen_modal():
     assert game.is_paused
     game.toggle_pause()
     assert not game.is_paused
+
+
+def test_death_screen_initials_and_menu_return():
+    import pygame
+    from snake.kawaii_config import GameMode, SCREEN_WIDTH, SCREEN_HEIGHT
+    from snake.kawaii_game import KawaiiSnakeGame
+    from snake.kawaii_hud import KawaiiHUD
+    from snake.kawaii_textures import TextureManager
+
+    textures = TextureManager()
+    hud = KawaiiHUD(textures)
+    surface = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
+
+    game = KawaiiSnakeGame()
+    game._trigger_death("Aïe !")
+    assert game.is_dead
+    assert not game.initials_submitted
+
+    # Type 3 letters
+    game.add_initial_char("x")
+    game.add_initial_char("y")
+    game.add_initial_char("z")
+    assert game.player_initials == "XYZ"
+
+    # Draw death screen during entry
+    hud.draw_death_screen(
+        surface=surface,
+        score=game.score,
+        high_score=game.high_score,
+        game_mode=game.game_mode,
+        death_reason=game.death_reason,
+        leaderboard=game.leaderboard,
+        player_initials=game.player_initials,
+        initials_submitted=game.initials_submitted,
+    )
+
+    # Submit initials
+    game.submit_initials()
+    assert game.initials_submitted
+    assert game.player_initials == "XYZ"
+
+    # Draw death screen after submission (should show return to menu prompt)
+    hud.draw_death_screen(
+        surface=surface,
+        score=game.score,
+        high_score=game.high_score,
+        game_mode=game.game_mode,
+        death_reason=game.death_reason,
+        leaderboard=game.leaderboard,
+        player_initials=game.player_initials,
+        initials_submitted=game.initials_submitted,
+    )

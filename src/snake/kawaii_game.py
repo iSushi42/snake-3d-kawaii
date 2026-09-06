@@ -108,17 +108,17 @@ class KawaiiSnakeGame:
         self._respawn_food()
 
     @property
+    def speed_level(self) -> int:
+        return 1 + (self.score // 5)
+
+    @property
     def theme_index(self) -> int:
         return (self.speed_level - 1) % len(THEMES)
 
     @property
-    def speed_level(self) -> int:
-        raw = 1 + (self.score // 5) - self.speed_reduction
-        return max(1, raw)
-
-    @property
     def current_speed(self) -> float:
-        base = DOOM_BASE_SPEED + (self.speed_level - 1) * DOOM_SPEED_INCREMENT
+        speed_increments = max(0, (self.score // 5) - self.speed_reduction)
+        base = DOOM_BASE_SPEED + speed_increments * DOOM_SPEED_INCREMENT
         if self.is_boosting:
             base *= 1.45
         return min(base, DOOM_MAX_SPEED)
@@ -383,9 +383,12 @@ class KawaiiSnakeGame:
                 self.pacifier_timer = 0.0
                 self.pacifier_spawn_timer = random.uniform(PACIFIER_SPAWN_MIN_INTERVAL, PACIFIER_SPAWN_MAX_INTERVAL)
 
-                cur_lvl = self.speed_level
-                levels_dropped = min(PACIFIER_MAX_LEVEL_DROP, cur_lvl - 1)
-                self.speed_reduction += levels_dropped
+                cur_speed_increments = max(0, (self.score // 5) - self.speed_reduction)
+                if cur_speed_increments > 0:
+                    levels_dropped = min(PACIFIER_MAX_LEVEL_DROP, 1)
+                    self.speed_reduction += levels_dropped
+                else:
+                    levels_dropped = 0
                 self.soothe_levels_dropped = levels_dropped
                 self.soothe_message_timer = 2.5
                 self.flash_color = (180, 245, 235, 80)

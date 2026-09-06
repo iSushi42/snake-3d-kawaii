@@ -104,6 +104,10 @@ def main():
                                 start_menu_view = "main"
                                 audio.play_tick()
                             break
+                elif game.is_dead and game.initials_submitted:
+                    in_start_menu = True
+                    start_menu_view = "main"
+                    audio.play_tick()
 
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
@@ -115,12 +119,10 @@ def main():
                             running = False
                     elif game.is_dead:
                         if not game.initials_submitted:
-                            game.restart()
-                            last_tick_second = -1
-                        else:
-                            in_start_menu = True
-                            start_menu_view = "main"
-                            audio.play_tick()
+                            game.submit_initials()
+                        in_start_menu = True
+                        start_menu_view = "main"
+                        audio.play_tick()
                     elif game.is_paused:
                         # Resume when pressing Escape in pause
                         game.toggle_pause()
@@ -173,25 +175,20 @@ def main():
                                 start_menu_view = "high_scores"
                                 audio.play_tick()
 
-                # Death screen: 3-letter initials entry or restart
+                # Death screen: 3-letter initials entry or return to menu
                 elif game.is_dead:
                     if not game.initials_submitted:
                         if event.key == pygame.K_BACKSPACE:
                             game.remove_initial_char()
                         elif event.key in (pygame.K_RETURN, pygame.K_KP_ENTER):
                             game.submit_initials()
+                            audio.play_tick()
                         elif event.unicode and event.unicode.isalpha() and len(event.unicode) == 1:
                             game.add_initial_char(event.unicode)
                     else:
-                        if event.key in (pygame.K_r, pygame.K_SPACE, pygame.K_RETURN, pygame.K_KP_ENTER):
-                            game.restart()
-                            last_tick_second = -1
-                        elif event.key == pygame.K_c:
-                            game.restart(GameMode.CLASSIC)
-                            last_tick_second = -1
-                        elif event.key == pygame.K_t:
-                            game.restart(GameMode.TIME_ATTACK)
-                            last_tick_second = -1
+                        in_start_menu = True
+                        start_menu_view = "main"
+                        audio.play_tick()
 
                 # PAUSE CONTROLS
                 elif game.is_paused:

@@ -373,7 +373,7 @@ class KawaiiHUD:
         # Icon and text
         is_urgent = time_remaining <= 1.5
         time_col = (245, 80, 110) if is_urgent else (230, 110, 50)
-        lbl_bonus = self.font_prompt.render("✦ TÉTINE APAISANTE (-3 VITESSES) ✦", True, (55, 130, 140))
+        lbl_bonus = self.font_prompt.render("✦ TÉTINE APAISANTE (-1 VITESSE) ✦", True, (55, 130, 140))
         lbl_time = self.font_prompt.render(f"{time_remaining:.1f}s", True, time_col)
 
         surface.blit(lbl_bonus, (bx + 20, by + 9))
@@ -806,9 +806,9 @@ class KawaiiHUD:
             c_surf = self.font_sub.render(c_txt, True, (40, 140, 80))
             surface.blit(c_surf, (pill_x + (pill_w - c_surf.get_width()) // 2, pill_y + 11))
 
-            # Bottom action bar for replay mode
+            # Bottom action bar for returning to menu
             pygame.draw.rect(surface, (255, 140, 165), btn_rect, border_radius=22)
-            prompt_text = "[ R ] Rejouer   •   [ C ] Mode Classique   •   [ T ] Contre-la-montre"
+            prompt_text = "✦ Appuyez sur une touche pour revenir au Menu Titre ✦"
             p_surf = self.font_prompt.render(prompt_text, True, (255, 255, 255))
             surface.blit(p_surf, (cx + (cw - p_surf.get_width()) // 2, by + 12))
 
