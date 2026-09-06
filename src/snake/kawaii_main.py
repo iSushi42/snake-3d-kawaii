@@ -11,6 +11,7 @@ from snake.kawaii_config import (
     INTERNAL_WIDTH,
     MAP_HEIGHT,
     MAP_WIDTH,
+    PACIFIER_LIFETIME,
     SCALE_FACTOR,
     SCREEN_HEIGHT,
     SCREEN_WIDTH,
@@ -135,6 +136,11 @@ def main():
                 audio.play_eat()
             if speed_increased:
                 audio.play_level_up()
+            if game.pacifier_just_spawned:
+                audio.play_pacifier_spawn()
+            if game.pacifier_eaten:
+                hud.trigger_grin()
+                audio.play_soothe()
 
             # Audio crash on death
             if game.is_dead and not was_dead:
@@ -165,6 +171,13 @@ def main():
         sz = max(16, int(64 * food_pulse))
         food_scaled = pygame.transform.scale(textures.sprite_apple, (sz, sz))
         sprites.append((game.food_x + 0.5, game.food_y + 0.5, food_scaled, True, 0.46, False))
+
+        # 1b. Pacifier bonus sprite (floating and gently pulsing at mid-height when active)
+        if game.pacifier_active:
+            p_pulse = 1.0 + 0.10 * math.sin(pygame.time.get_ticks() / 160.0)
+            p_sz = max(16, int(64 * p_pulse))
+            pacifier_scaled = pygame.transform.scale(textures.sprite_pacifier, (p_sz, p_sz))
+            sprites.append((game.pacifier_x + 0.5, game.pacifier_y + 0.5, pacifier_scaled, True, 0.48, False))
 
         # 2. Body segments (resting on the floor with world_scale 0.40)
         body_positions = game.get_body_segment_positions()
@@ -262,7 +275,15 @@ def main():
             snake_body=body_positions,
             food_pos=(game.food_x, game.food_y),
             show_minimap=game.show_minimap,
+            pacifier_pos=((game.pacifier_x, game.pacifier_y) if game.pacifier_active else None),
         )
+
+        # Render Pacifier active countdown banner or Soothe confirmation banner
+        if not in_start_menu and not game.is_dead and not game.is_paused:
+            if game.pacifier_active:
+                hud.draw_pacifier_banner(screen, game.pacifier_timer, PACIFIER_LIFETIME)
+            elif game.soothe_message_timer > 0:
+                hud.draw_soothe_banner(screen, game.soothe_levels_dropped, game.speed_level)
 
         # Render Start Screen, Game Over, or Pause screens
         if in_start_menu:

@@ -212,6 +212,7 @@ class KawaiiHUD:
         snake_body: List[Tuple[float, float]],
         food_pos: Tuple[int, int],
         show_minimap: bool = False,
+        pacifier_pos: Optional[Tuple[int, int]] = None,
     ):
         """Draws cute pastel automap radar in top-right corner if enabled, or hint badge."""
         radar_size = 140
@@ -257,6 +258,16 @@ class KawaiiHUD:
             (int((fx + 0.5) * scale), int((fy + 0.5) * scale)),
             pulse,
         )
+
+        # Draw pacifier bonus (cute bouncing pastel cyan/mint dot)
+        if pacifier_pos is not None:
+            p_pulse = 3 + int(abs(math.sin(pygame.time.get_ticks() / 150.0)) * 2)
+            pygame.draw.circle(
+                radar_surf,
+                (60, 215, 200, 255),
+                (int((pacifier_pos[0] + 0.5) * scale), int((pacifier_pos[1] + 0.5) * scale)),
+                p_pulse,
+            )
 
         # Draw snake body trail (soft baby mint segments)
         for seg_x, seg_y in snake_body:
@@ -333,6 +344,71 @@ class KawaiiHUD:
             pygame.draw.rect(surface, bg_color, rect_chrono, border_radius=18)
             pygame.draw.rect(surface, border_color, rect_chrono, width=2 if is_critical else 1, border_radius=18)
             surface.blit(lbl_time, (chrono_x + 12, y + 10))
+
+    def draw_pacifier_banner(
+        self,
+        surface: pygame.Surface,
+        time_remaining: float,
+        total_time: float = 5.0,
+    ):
+        """Draws cute top notification banner with countdown bar when the pacifier bonus appears."""
+        bw, bh = 510, 38
+        bx = (SCREEN_WIDTH - bw) // 2
+        by = 56
+        rect = pygame.Rect(bx, by, bw, bh)
+
+        # Translucent soft white-cyan pill background
+        banner_surf = pygame.Surface((bw, bh), pygame.SRCALPHA)
+        banner_surf.fill((255, 255, 255, 235))
+        surface.blit(banner_surf, (bx, by))
+
+        # Pulsing soothing border
+        pulse = 0.5 + 0.5 * math.sin(pygame.time.get_ticks() / 160.0)
+        border_r = int(120 + pulse * 40)
+        border_g = int(210 + pulse * 25)
+        border_b = int(200 + pulse * 35)
+        pygame.draw.rect(surface, (border_r, border_g, border_b), rect, width=2, border_radius=19)
+
+        # Icon and text
+        is_urgent = time_remaining <= 1.5
+        time_col = (245, 80, 110) if is_urgent else (230, 110, 50)
+        lbl_bonus = self.font_prompt.render("✦ TÉTINE APAISANTE (-3 VITESSES) ✦", True, (55, 130, 140))
+        lbl_time = self.font_prompt.render(f"{time_remaining:.1f}s", True, time_col)
+
+        surface.blit(lbl_bonus, (bx + 20, by + 9))
+        surface.blit(lbl_time, (bx + bw - lbl_time.get_width() - 20, by + 9))
+
+        # Smooth countdown progress gauge along the bottom of the pill
+        ratio = max(0.0, min(1.0, time_remaining / total_time))
+        gauge_w = int((bw - 36) * ratio)
+        gauge_rect = pygame.Rect(bx + 18, by + bh - 5, gauge_w, 3)
+        gauge_col = (255, 120, 145) if is_urgent else (90, 205, 175)
+        pygame.draw.rect(surface, gauge_col, gauge_rect, border_radius=2)
+
+    def draw_soothe_banner(
+        self,
+        surface: pygame.Surface,
+        levels_dropped: int,
+        current_level: int,
+    ):
+        """Draws confirmation banner after collecting the pacifier bonus."""
+        bw, bh = 510, 38
+        bx = (SCREEN_WIDTH - bw) // 2
+        by = 56
+        rect = pygame.Rect(bx, by, bw, bh)
+
+        banner_surf = pygame.Surface((bw, bh), pygame.SRCALPHA)
+        banner_surf.fill((236, 252, 243, 240))
+        surface.blit(banner_surf, (bx, by))
+        pygame.draw.rect(surface, (100, 215, 160), rect, width=2, border_radius=19)
+
+        if levels_dropped > 0:
+            msg = f"✦ BÉBÉ APAISÉ ! Vitesse -{levels_dropped} (Niveau {current_level}) ✦"
+        else:
+            msg = f"✦ BÉBÉ APAISÉ ! (Vitesse de départ Niveau {current_level}) ✦"
+
+        lbl_msg = self.font_prompt.render(msg, True, (35, 145, 85))
+        surface.blit(lbl_msg, (bx + (bw - lbl_msg.get_width()) // 2, by + 9))
 
     def _draw_mini_table(
         self,

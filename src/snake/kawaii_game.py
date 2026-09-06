@@ -15,6 +15,10 @@ from snake.kawaii_config import (
     GameMode,
     MAP_HEIGHT,
     MAP_WIDTH,
+    PACIFIER_LIFETIME,
+    PACIFIER_MAX_LEVEL_DROP,
+    PACIFIER_SPAWN_MAX_INTERVAL,
+    PACIFIER_SPAWN_MIN_INTERVAL,
     THEMES,
     TIME_ATTACK_BONUS_PER_APPLE,
     TIME_ATTACK_MAX_SECONDS,
@@ -82,6 +86,18 @@ class KawaiiSnakeGame:
         self.is_dead: bool = False
         self.is_paused: bool = False
 
+        # Pacifier (Tétine) Calming Bonus state
+        self.speed_reduction: int = 0
+        self.pacifier_active: bool = False
+        self.pacifier_timer: float = 0.0
+        self.pacifier_spawn_timer: float = random.uniform(PACIFIER_SPAWN_MIN_INTERVAL, PACIFIER_SPAWN_MAX_INTERVAL)
+        self.pacifier_x: int = 0
+        self.pacifier_y: int = 0
+        self.pacifier_just_spawned: bool = False
+        self.pacifier_eaten: bool = False
+        self.soothe_message_timer: float = 0.0
+        self.soothe_levels_dropped: int = 0
+
         # Visuals & juice
         self.bob_time: float = 0.0
         self.flash_timer: float = 0.0
@@ -97,11 +113,12 @@ class KawaiiSnakeGame:
 
     @property
     def speed_level(self) -> int:
-        return 1 + (self.score // 5)
+        raw = 1 + (self.score // 5) - self.speed_reduction
+        return max(1, raw)
 
     @property
     def current_speed(self) -> float:
-        base = DOOM_BASE_SPEED + (self.score // 5) * DOOM_SPEED_INCREMENT
+        base = DOOM_BASE_SPEED + (self.speed_level - 1) * DOOM_SPEED_INCREMENT
         if self.is_boosting:
             base *= 1.45
         return min(base, DOOM_MAX_SPEED)
@@ -178,6 +195,14 @@ class KawaiiSnakeGame:
             self.submit_initials(default_name=self.last_player_name or "AAA")
         self.player_initials = ""
         self.initials_submitted = False
+        self.speed_reduction = 0
+        self.pacifier_active = False
+        self.pacifier_timer = 0.0
+        self.pacifier_spawn_timer = random.uniform(PACIFIER_SPAWN_MIN_INTERVAL, PACIFIER_SPAWN_MAX_INTERVAL)
+        self.pacifier_just_spawned = False
+        self.pacifier_eaten = False
+        self.soothe_message_timer = 0.0
+        self.soothe_levels_dropped = 0
         if mode is not None:
             self.game_mode = mode
         self.head_x = 8.5
@@ -230,6 +255,14 @@ class KawaiiSnakeGame:
             if self.flash_timer <= 0:
                 self.flash_color = None
 
+        if self.soothe_message_timer > 0:
+            self.soothe_message_timer -= dt
+            if self.soothe_message_timer <= 0:
+                self.soothe_message_timer = 0.0
+
+        self.pacifier_just_spawned = False
+        self.pacifier_eaten = False
+
         if self.is_dead or self.is_paused:
             return False, False
 
@@ -240,6 +273,21 @@ class KawaiiSnakeGame:
                 self.time_remaining = 0.0
                 self._trigger_death("Temps écoulé !")
                 return False, False
+
+        # Pacifier (Tétine) bonus lifecycle & spawn update
+        if not self.pacifier_active:
+            self.pacifier_spawn_timer -= dt
+            if self.pacifier_spawn_timer <= 0:
+                self._respawn_pacifier()
+                self.pacifier_active = True
+                self.pacifier_timer = PACIFIER_LIFETIME
+                self.pacifier_just_spawned = True
+        else:
+            self.pacifier_timer -= dt
+            if self.pacifier_timer <= 0:
+                self.pacifier_active = False
+                self.pacifier_timer = 0.0
+                self.pacifier_spawn_timer = random.uniform(PACIFIER_SPAWN_MIN_INTERVAL, PACIFIER_SPAWN_MAX_INTERVAL)
 
         # Fast responsive camera rotation towards target 90-degree angle
         angle_diff = (self.target_angle - self.current_angle + math.pi) % (2 * math.pi) - math.pi
@@ -326,6 +374,23 @@ class KawaiiSnakeGame:
 
             self._respawn_food()
 
+        # Pacifier collision check
+        if self.pacifier_active:
+            dist_to_pacifier = math.hypot(new_x - (self.pacifier_x + 0.5), new_y - (self.pacifier_y + 0.5))
+            if dist_to_pacifier < 0.65:
+                self.pacifier_eaten = True
+                self.pacifier_active = False
+                self.pacifier_timer = 0.0
+                self.pacifier_spawn_timer = random.uniform(PACIFIER_SPAWN_MIN_INTERVAL, PACIFIER_SPAWN_MAX_INTERVAL)
+
+                cur_lvl = self.speed_level
+                levels_dropped = min(PACIFIER_MAX_LEVEL_DROP, cur_lvl - 1)
+                self.speed_reduction += levels_dropped
+                self.soothe_levels_dropped = levels_dropped
+                self.soothe_message_timer = 2.5
+                self.flash_color = (180, 245, 235, 80)
+                self.flash_timer = 0.35
+
         return apple_eaten, speed_increased
 
     def _trigger_death(self, reason: str = "Aïe !"):
@@ -398,6 +463,21 @@ class KawaiiSnakeGame:
         ]
         if valid_positions:
             self.food_x, self.food_y = random.choice(valid_positions)
+
+    def _respawn_pacifier(self):
+        """Spawns pacifier away from walls, snake body, and food."""
+        body = set((int(bx), int(by)) for bx, by in self.get_body_segment_positions())
+        body.add((int(self.head_x), int(self.head_y)))
+        body.add((self.food_x, self.food_y))
+
+        valid_positions = [
+            (x, y)
+            for y in range(1, MAP_HEIGHT - 1)
+            for x in range(1, MAP_WIDTH - 1)
+            if self.world_map[y][x] == 0 and (x, y) not in body
+        ]
+        if valid_positions:
+            self.pacifier_x, self.pacifier_y = random.choice(valid_positions)
 
     def _load_high_score(self) -> int:
         try:

@@ -614,3 +614,112 @@ def test_death_screen_renders_initials_input_and_nom_column():
     hud.draw_start_screen(surface=surface, leaderboard=fake_lb, selected_mode=GameMode.CLASSIC)
 
 
+def test_pacifier_speed_reduction_bounds():
+    from snake.kawaii_config import DOOM_BASE_SPEED, DOOM_SPEED_INCREMENT
+    from snake.kawaii_game import KawaiiSnakeGame
+
+    game = KawaiiSnakeGame()
+    # At start: score 0, speed level 1
+    assert game.speed_level == 1
+    assert game.current_speed == DOOM_BASE_SPEED
+
+    # Level 1 pacifier pickup: should stay level 1 (cannot go below level 1)
+    game.pacifier_active = True
+    game.pacifier_timer = 5.0
+    game.pacifier_x, game.pacifier_y = 8, 8
+    game.head_x, game.head_y = 8.5, 8.5
+    game.update(0.01)
+    assert game.pacifier_eaten
+    assert game.speed_level == 1
+    assert game.speed_reduction == 0
+    assert game.current_speed == DOOM_BASE_SPEED
+
+    # Level 5 (score 20): pacifier drops by min(3, 5 - 1) = 3 -> Level 2
+    game.score = 20
+    game.speed_reduction = 0
+    assert game.speed_level == 5
+    game.pacifier_active = True
+    game.pacifier_timer = 5.0
+    game.pacifier_x, game.pacifier_y = int(game.head_x), int(game.head_y)
+    game.update(0.01)
+    assert game.pacifier_eaten
+    assert game.soothe_levels_dropped == 3
+    assert game.speed_level == 2
+    assert game.current_speed == DOOM_BASE_SPEED + 1 * DOOM_SPEED_INCREMENT
+
+    # Level 3 (score 10, no reduction): drops by 2 -> Level 1
+    game.score = 10
+    game.speed_reduction = 0
+    assert game.speed_level == 3
+    game.pacifier_active = True
+    game.pacifier_timer = 5.0
+    game.pacifier_x, game.pacifier_y = int(game.head_x), int(game.head_y)
+    game.update(0.01)
+    assert game.pacifier_eaten
+    assert game.soothe_levels_dropped == 2
+    assert game.speed_level == 1
+    assert game.current_speed == DOOM_BASE_SPEED
+
+
+def test_pacifier_lifetime_and_timeout():
+    from snake.kawaii_config import PACIFIER_LIFETIME
+    from snake.kawaii_game import KawaiiSnakeGame
+
+    game = KawaiiSnakeGame()
+    # Manually trigger pacifier active
+    game.pacifier_active = True
+    game.pacifier_timer = PACIFIER_LIFETIME
+    game.pacifier_x, game.pacifier_y = 1, 1
+    # Place snake safely on long corridor at x=2.0 facing East
+    game.head_x = 2.0
+    game.head_y = 8.5
+
+    # Update for 2.0s -> pacifier remains active (timer decreases to ~3.0s)
+    game.update(2.0)
+    assert not game.is_dead
+    assert game.pacifier_active
+    assert 2.9 <= game.pacifier_timer <= 3.1
+
+    # Turn North and update for 3.1s -> pacifier expires
+    game.turn_left()  # Facing North
+    game.update(3.1)
+    assert not game.pacifier_active
+    assert game.pacifier_timer == 0.0
+
+
+def test_pacifier_textures_and_hud_banners():
+    import pygame
+    from snake.kawaii_config import SCREEN_WIDTH, SCREEN_HEIGHT
+    from snake.kawaii_hud import KawaiiHUD
+    from snake.kawaii_textures import TextureManager
+
+    textures = TextureManager()
+    assert hasattr(textures, "sprite_pacifier")
+    assert textures.sprite_pacifier.get_size() == (64, 64)
+
+    hud = KawaiiHUD(textures)
+    surface = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
+
+    # Test pacifier banner with full and critical countdown
+    hud.draw_pacifier_banner(surface, time_remaining=4.8, total_time=5.0)
+    hud.draw_pacifier_banner(surface, time_remaining=1.1, total_time=5.0)
+
+    # Test soothe confirmation banner
+    hud.draw_soothe_banner(surface, levels_dropped=3, current_level=2)
+    hud.draw_soothe_banner(surface, levels_dropped=0, current_level=1)
+
+    # Test automap radar with pacifier position
+    from snake.kawaii_game import build_default_map
+    hud.draw_automap_radar(
+        surface=surface,
+        world_map=build_default_map(),
+        snake_head=(8.5, 8.5),
+        snake_angle=0.0,
+        snake_body=[(8.0, 8.5)],
+        food_pos=(12, 8),
+        show_minimap=True,
+        pacifier_pos=(5, 5),
+    )
+
+
+

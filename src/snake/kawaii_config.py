@@ -40,6 +40,12 @@ TIME_ATTACK_START_SECONDS = 10.0
 TIME_ATTACK_BONUS_PER_APPLE = 5.0
 TIME_ATTACK_MAX_SECONDS = 60.0
 
+# Pacifier (Tétine) Calming Bonus Settings
+PACIFIER_LIFETIME = 5.0                # Active lifetime in seconds before disappearing
+PACIFIER_SPAWN_MIN_INTERVAL = 18.0     # Minimum random seconds before next spawn
+PACIFIER_SPAWN_MAX_INTERVAL = 32.0     # Maximum random seconds before next spawn
+PACIFIER_MAX_LEVEL_DROP = 3            # Maximum speed levels dropped on pickup
+
 # Cute & Kawaii Pastel Baby Color Palette
 COLOR_CEILING = (235, 240, 253)       # Soft baby blue / lavender sky
 COLOR_FLOOR = (254, 247, 240)         # Warm vanilla baby cream floor

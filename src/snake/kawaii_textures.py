@@ -316,6 +316,62 @@ def create_kawaii_faces() -> Dict[str, pygame.Surface]:
     return faces
 
 
+def create_pacifier_sprite() -> pygame.Surface:
+    """Cute baby pacifier / tétine with calming soft pastel colors, silicone teat, shield and handle ring."""
+    surf = pygame.Surface((TEXTURE_SIZE, TEXTURE_SIZE), pygame.SRCALPHA)
+    cx, cy = 32, 34
+
+    # 1. Soft soothing pastel aura (warm mint / lavender sparkles)
+    for r in range(28, 18, -2):
+        alpha = int(70 * (1.0 - (r - 18) / 10.0))
+        pygame.draw.circle(surf, (180, 240, 230, alpha), (cx, cy), r)
+
+    # 2. Pacifier ring/handle (bottom loop)
+    ring_cy = cy + 13
+    pygame.draw.circle(surf, (150, 195, 235), (cx, ring_cy), 11, width=3)
+    pygame.draw.circle(surf, (215, 238, 255), (cx - 1, ring_cy - 1), 11, width=2)
+    # Ring highlight
+    pygame.draw.circle(surf, (255, 255, 255), (cx - 7, ring_cy - 4), 2)
+
+    # 3. Soft translucent silicone teat/nipple (top bulb)
+    teat_cy = cy - 12
+    # Base connection
+    pygame.draw.ellipse(surf, (255, 220, 150, 240), (cx - 8, cy - 12, 16, 12))
+    # Nipple bulb
+    pygame.draw.ellipse(surf, (255, 225, 165, 230), (cx - 11, teat_cy - 7, 22, 18))
+    pygame.draw.ellipse(surf, (255, 240, 195, 240), (cx - 8, teat_cy - 6, 16, 13))
+    # Silicone glossy highlight
+    pygame.draw.ellipse(surf, (255, 255, 255, 220), (cx - 6, teat_cy - 5, 6, 8))
+
+    # 4. Pacifier shield/guard (curved oval pastel mint/cyan plate)
+    guard_rect = pygame.Rect(cx - 20, cy - 6, 40, 18)
+    pygame.draw.rect(surf, (120, 215, 200), guard_rect, border_radius=9)
+    pygame.draw.rect(surf, (165, 238, 225), (cx - 18, cy - 5, 36, 16), border_radius=8)
+    pygame.draw.rect(surf, (220, 252, 245), (cx - 16, cy - 4, 32, 7), border_radius=4)
+
+    # Aeration holes (left and right)
+    pygame.draw.circle(surf, (80, 175, 160), (cx - 11, cy + 3), 3)
+    pygame.draw.circle(surf, (255, 255, 255), (cx - 11, cy + 3), 2)
+    pygame.draw.circle(surf, (80, 175, 160), (cx + 11, cy + 3), 3)
+    pygame.draw.circle(surf, (255, 255, 255), (cx + 11, cy + 3), 2)
+
+    # Center button / cute heart icon
+    pygame.draw.circle(surf, (255, 165, 190), (cx, cy + 2), 6)
+    pygame.draw.circle(surf, (255, 255, 255), (cx, cy + 2), 5)
+    # Little heart in center
+    pygame.draw.circle(surf, (255, 120, 150), (cx - 2, cy + 1), 2)
+    pygame.draw.circle(surf, (255, 120, 150), (cx + 2, cy + 1), 2)
+    pygame.draw.polygon(surf, (255, 120, 150), [(cx - 3, cy + 2), (cx + 3, cy + 2), (cx, cy + 5)])
+
+    # Sparkle stars around pacifier
+    for sx, sy in [(cx - 20, cy - 14), (cx + 19, cy - 12), (cx + 18, cy + 16)]:
+        pygame.draw.line(surf, (255, 255, 255, 220), (sx - 3, sy), (sx + 3, sy), 1)
+        pygame.draw.line(surf, (255, 255, 255, 220), (sx, sy - 3), (sx, sy + 3), 1)
+        pygame.draw.circle(surf, (255, 255, 255), (sx, sy), 1)
+
+    return surf
+
+
 # Backwards compatibility alias
 create_doom_faces = create_kawaii_faces
 
@@ -336,6 +392,7 @@ class TextureManager:
         self.theme_walls = [self.wall_candy, self.wall_night, self.wall_forest]
 
         self.sprite_apple = create_apple_sprite()
+        self.sprite_pacifier = create_pacifier_sprite()
         self.sprite_segment = create_snake_segment_sprite()
         self.sprite_snake_head = create_snake_head_sprite()
         self.fangs_overlay = create_first_person_fangs()

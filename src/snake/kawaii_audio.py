@@ -13,6 +13,8 @@ class KawaiiAudio:
         self.sound_level_up: Optional[pygame.mixer.Sound] = None
         self.sound_crash: Optional[pygame.mixer.Sound] = None
         self.sound_tick: Optional[pygame.mixer.Sound] = None
+        self.sound_pacifier_spawn: Optional[pygame.mixer.Sound] = None
+        self.sound_soothe: Optional[pygame.mixer.Sound] = None
         self.sound_bgm: Optional[pygame.mixer.Sound] = None
         self.bgm_channel: Optional[pygame.mixer.Channel] = None
 
@@ -81,7 +83,36 @@ class KawaiiAudio:
         stereo_tick = np.column_stack((pcm_tick, pcm_tick))
         self.sound_tick = pygame.sndarray.make_sound(stereo_tick)
 
-        # 5. Background Music: Cute, calming 8-bar chiptune loop
+        # 5. Pacifier spawn: Dreamy 2-note bell chime (F5 -> C6)
+        spawn_notes = [698.46, 1046.50]
+        spawn_dur = 0.15
+        pcm_spawn_list = []
+        for f in spawn_notes:
+            n_sp = int(sample_rate * spawn_dur)
+            t_sp = np.linspace(0, spawn_dur, n_sp, endpoint=False)
+            env_sp = np.exp(-t_sp * 6.0)
+            w_sp = (np.sin(2 * np.pi * f * t_sp) * 0.7 + np.sin(4 * np.pi * f * t_sp) * 0.3)
+            pcm_spawn_list.append((w_sp * env_sp * 13000).astype(np.int16))
+        full_spawn = np.concatenate(pcm_spawn_list)
+        stereo_spawn = np.column_stack((full_spawn, full_spawn))
+        self.sound_pacifier_spawn = pygame.sndarray.make_sound(stereo_spawn)
+
+        # 6. Soothe pickup: Relaxing 3-note lullaby chime (G5, E5, C5 with slow soothing decay)
+        soothe_notes = [783.99, 659.25, 523.25]
+        soothe_dur = 0.18
+        pcm_soothe_list = []
+        for f in soothe_notes:
+            n_so = int(sample_rate * soothe_dur)
+            t_so = np.linspace(0, soothe_dur, n_so, endpoint=False)
+            env_so = np.exp(-t_so * 4.2)
+            vib = 1.0 + 0.01 * np.sin(2 * np.pi * 5.0 * t_so)
+            w_so = (np.sin(2 * np.pi * f * vib * t_so) * 0.75 + np.sin(4 * np.pi * f * t_so) * 0.25)
+            pcm_soothe_list.append((w_so * env_so * 15000).astype(np.int16))
+        full_soothe = np.concatenate(pcm_soothe_list)
+        stereo_soothe = np.column_stack((full_soothe, full_soothe))
+        self.sound_soothe = pygame.sndarray.make_sound(stereo_soothe)
+
+        # 7. Background Music: Cute, calming 8-bar chiptune loop
         self._synthesize_bgm(sample_rate)
 
     def _synthesize_bgm(self, sample_rate: int):
@@ -128,6 +159,14 @@ class KawaiiAudio:
     def play_tick(self):
         if self.is_enabled and not self.is_muted and self.sound_tick:
             self.sound_tick.play()
+
+    def play_pacifier_spawn(self):
+        if self.is_enabled and not self.is_muted and self.sound_pacifier_spawn:
+            self.sound_pacifier_spawn.play()
+
+    def play_soothe(self):
+        if self.is_enabled and not self.is_muted and self.sound_soothe:
+            self.sound_soothe.play()
 
     def start_bgm(self):
         if self.is_enabled and not self.is_muted and self.sound_bgm and self.bgm_channel:
