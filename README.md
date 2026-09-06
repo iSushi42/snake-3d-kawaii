@@ -4,9 +4,7 @@ Jeu de Snake 3D complet en Python avec moteur de raycasting temps réel, univers
 
 Lancement direct avec :
 ```bash
-uv run snake2
-# ou
-uv run snake
+uv run kawaii-snake
 ```
 
 ---
@@ -47,14 +45,14 @@ uv run snake
   - **Échap** : Quitter
 - **Lancement** :
   ```bash
-  uv run snake2
+  uv run kawaii-snake
   ```
 
 ---
 
 ## 🧪 Tests Automatisés
 
-L'ensemble des mécaniques 2D et 3D sont couvertes par 17 tests unitaires `pytest` :
+L'ensemble des mécaniques sont couvertes par 24 tests unitaires `pytest` :
 
 ```bash
 uv run pytest
