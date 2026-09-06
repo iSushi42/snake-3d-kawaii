@@ -470,3 +470,38 @@ def test_chrono_title_no_missing_glyphs():
     assert "✦ CONTRE-LA-MONTRE ✦" in start_src
     assert "✦ CONTRE-LA-MONTRE ✦" in death_src
 
+
+def test_panoramic_sky_clouds():
+    import math
+    from snake.kawaii_config import SKY_WIDTH, INTERNAL_HEIGHT, ViewMode, THEMES
+    from snake.kawaii_game import build_default_map
+    from snake.kawaii_raycaster import Raycaster, create_panoramic_skies
+    from snake.kawaii_textures import TextureManager
+
+    half_h = INTERNAL_HEIGHT // 2
+    skies = create_panoramic_skies(half_h)
+    assert len(skies) == len(THEMES)
+    for sky in skies:
+        assert sky.get_width() == SKY_WIDTH
+        assert sky.get_height() == half_h
+
+    textures = TextureManager()
+    raycaster = Raycaster(textures)
+    world_map = build_default_map()
+
+    # Test rendering at various camera angles including wrapping near 0 / 2pi
+    for angle in (0.0, math.pi / 2, math.pi, 3 * math.pi / 2, 2 * math.pi - 0.05, 0.05):
+        for theme_idx in range(len(THEMES)):
+            surf = raycaster.render(
+                world_map=world_map,
+                cam_x=8.5,
+                cam_y=8.5,
+                cam_angle=angle,
+                view_mode=ViewMode.FIRST_PERSON,
+                sprites=[],
+                bob_time=0.0,
+                theme_index=theme_idx,
+            )
+            assert surf is not None
+            assert surf.get_size() == (320, 170)
+

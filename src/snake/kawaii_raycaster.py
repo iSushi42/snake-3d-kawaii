@@ -18,10 +18,121 @@ from snake.kawaii_config import (
     MAP_WIDTH,
     MAX_DEPTH,
     NUM_RAYS,
+    SKY_WIDTH,
     THEMES,
     ViewMode,
 )
 from snake.kawaii_textures import TEXTURE_SIZE, TextureManager
+
+
+def _draw_kawaii_cloud(
+    surf: pygame.Surface,
+    cx: int,
+    cy: int,
+    scale: float = 1.0,
+    color: Tuple[int, int, int] = (255, 255, 255),
+    shadow_color: Tuple[int, int, int] = (255, 228, 238),
+    has_face: bool = False,
+    sky_w: int = SKY_WIDTH,
+):
+    """Draws a cute puffy kawaii cloud with 360-degree seamless border wrapping."""
+    def _render_instance(x: int):
+        bw = int(52 * scale)
+        bh = int(18 * scale)
+
+        # Soft pastel shadow / base
+        pygame.draw.ellipse(surf, shadow_color, (x - bw // 2, cy - bh // 2 + 3, bw, bh))
+        pygame.draw.circle(surf, shadow_color, (x - int(14 * scale), cy - 2), int(12 * scale))
+        pygame.draw.circle(surf, shadow_color, (x, cy - int(6 * scale)), int(16 * scale))
+        pygame.draw.circle(surf, shadow_color, (x + int(15 * scale), cy - 3), int(11 * scale))
+
+        # Cloud fluffy body
+        pygame.draw.ellipse(surf, color, (x - bw // 2, cy - bh // 2, bw, bh))
+        pygame.draw.circle(surf, color, (x - int(14 * scale), cy - 4), int(12 * scale))
+        pygame.draw.circle(surf, color, (x, cy - int(8 * scale)), int(16 * scale))
+        pygame.draw.circle(surf, color, (x + int(15 * scale), cy - 5), int(11 * scale))
+
+        if has_face:
+            # Cute sleepy smiling face ( ˘ ‿ ˘ )
+            pygame.draw.arc(surf, (80, 70, 85), (x - 8, cy - 8, 6, 5), 0, 3.14, 2)
+            pygame.draw.arc(surf, (80, 70, 85), (x + 2, cy - 8, 6, 5), 0, 3.14, 2)
+            pygame.draw.circle(surf, (255, 175, 190), (x - 10, cy - 2), 2)
+            pygame.draw.circle(surf, (255, 175, 190), (x + 10, cy - 2), 2)
+            pygame.draw.arc(surf, (80, 70, 85), (x - 3, cy - 5, 6, 4), 3.14, 0, 2)
+
+    _render_instance(cx)
+    if cx < 120:
+        _render_instance(cx + sky_w)
+    elif cx > sky_w - 120:
+        _render_instance(cx - sky_w)
+
+
+def create_panoramic_skies(sky_h: int) -> List[pygame.Surface]:
+    """Generates 360° panoramic skies with cute clouds for all 3 themes."""
+    import random
+    skies = []
+
+    # Theme 0: Guimauve (Baby blue sky with fluffy white marshmallow clouds)
+    s0 = pygame.Surface((SKY_WIDTH, sky_h))
+    for y in range(sky_h):
+        f = y / sky_h
+        pygame.draw.line(s0, (int(232 + f * 16), int(240 - f * 2), int(255 - f * 9)), (0, y), (SKY_WIDTH, y))
+    random.seed(42)
+    for i in range(12):
+        cx = int(i * (SKY_WIDTH / 12) + random.uniform(-40, 40))
+        cy = int(random.uniform(16, 40))
+        sc = random.uniform(0.8, 1.25)
+        _draw_kawaii_cloud(s0, cx, cy, scale=sc, has_face=(i % 3 == 0))
+    for _ in range(40):
+        sx = random.randint(0, SKY_WIDTH - 1)
+        sy = random.randint(5, 55)
+        pygame.draw.circle(s0, (255, 255, 255), (sx, sy), 1)
+    skies.append(s0)
+
+    # Theme 1: Nuit Étoilée (Deep indigo starry night with moon & dreamy night clouds)
+    s1 = pygame.Surface((SKY_WIDTH, sky_h))
+    for y in range(sky_h):
+        f = y / sky_h
+        pygame.draw.line(s1, (int(34 + f * 18), int(36 + f * 18), int(60 + f * 20)), (0, y), (SKY_WIDTH, y))
+    random.seed(202)
+    for _ in range(80):
+        sx = random.randint(0, SKY_WIDTH - 1)
+        sy = random.randint(3, 62)
+        col = (255, 245, 190) if random.random() < 0.65 else (220, 240, 255)
+        pygame.draw.circle(s1, col, (sx, sy), 1)
+
+    # Golden Crescent Moon
+    mx, my = 600, 24
+    pygame.draw.circle(s1, (255, 240, 160), (mx, my), 11)
+    pygame.draw.circle(s1, (38, 40, 66), (mx + 4, my - 3), 10)
+
+    for i in range(10):
+        cx = int(i * (SKY_WIDTH / 10) + random.uniform(-50, 50))
+        cy = int(random.uniform(22, 48))
+        sc = random.uniform(0.7, 1.2)
+        _draw_kawaii_cloud(s1, cx, cy, scale=sc, color=(80, 76, 114), shadow_color=(58, 54, 88), has_face=False)
+    skies.append(s1)
+
+    # Theme 2: Forêt Féerique (Peach twilight sky with cotton-candy clouds & fairy sparkles)
+    s2 = pygame.Surface((SKY_WIDTH, sky_h))
+    for y in range(sky_h):
+        f = y / sky_h
+        pygame.draw.line(s2, (int(255 - f * 13), int(234 - f * 8), int(224 + f * 12)), (0, y), (SKY_WIDTH, y))
+    random.seed(303)
+    for _ in range(50):
+        sx = random.randint(0, SKY_WIDTH - 1)
+        sy = random.randint(4, 55)
+        col = (210, 255, 220) if random.random() < 0.6 else (255, 242, 175)
+        pygame.draw.circle(s2, col, (sx, sy), 1)
+
+    for i in range(11):
+        cx = int(i * (SKY_WIDTH / 11) + random.uniform(-40, 40))
+        cy = int(random.uniform(16, 42))
+        sc = random.uniform(0.75, 1.2)
+        _draw_kawaii_cloud(s2, cx, cy, scale=sc, color=(255, 248, 246), shadow_color=(235, 218, 236), has_face=(i % 4 == 0))
+    skies.append(s2)
+
+    return skies
 
 
 class Raycaster:
@@ -30,9 +141,10 @@ class Raycaster:
         self.depth_buffer = np.zeros(NUM_RAYS, dtype=np.float32)
         self.internal_surface = pygame.Surface((INTERNAL_WIDTH, INTERNAL_HEIGHT))
 
-        # Pre-generate backgrounds for all 3 cyclical themes
-        self.theme_bg_surfaces = []
         half_h = INTERNAL_HEIGHT // 2
+        # 360° panoramic skies with kawaii clouds
+        self.theme_sky_surfaces = create_panoramic_skies(half_h)
+        self.theme_bg_surfaces = []
         for t_info in THEMES:
             bg_surf = pygame.Surface((INTERNAL_WIDTH, INTERNAL_HEIGHT))
             cr, cg, cb = t_info["ceiling"]
@@ -93,9 +205,16 @@ class Raycaster:
         fog_color = theme["fog"]
         half_h = INTERNAL_HEIGHT // 2
 
-        # 1. Reset buffer with active theme ceiling/floor
-        bg_surface = self.theme_bg_surfaces[theme_index % len(self.theme_bg_surfaces)]
-        self.internal_surface.blit(bg_surface, (0, 0))
+        # 1. Render panoramic 360° sky with kawaii clouds
+        sky_surf = self.theme_sky_surfaces[theme_index % len(self.theme_sky_surfaces)]
+        left_angle = (cam_angle - HALF_FOV) % (2 * math.pi)
+        start_x = int((left_angle / (2 * math.pi)) * SKY_WIDTH)
+        if start_x + INTERNAL_WIDTH <= SKY_WIDTH:
+            self.internal_surface.blit(sky_surf, (0, 0), (start_x, 0, INTERNAL_WIDTH, half_h))
+        else:
+            w1 = SKY_WIDTH - start_x
+            self.internal_surface.blit(sky_surf, (0, 0), (start_x, 0, w1, half_h))
+            self.internal_surface.blit(sky_surf, (w1, 0), (0, 0, INTERNAL_WIDTH - w1, half_h))
 
         # 1b. Render checkered floor (sol en damier)
         col0_by_row, col1_by_row = self.theme_floor_colors[theme_index % len(self.theme_floor_colors)]
