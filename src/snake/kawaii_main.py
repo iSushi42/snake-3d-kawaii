@@ -41,7 +41,8 @@ def main():
     game = KawaiiSnakeGame()
 
     in_start_menu = True
-    selected_mode = GameMode.CLASSIC
+    start_menu_view = "main"  # "main" or "high_scores"
+    menu_selected_idx = 0     # 0: Classique, 1: Contre-la-montre, 2: High score
     was_dead = False
     last_tick_second = -1
 
@@ -55,9 +56,43 @@ def main():
             if event.type == pygame.QUIT:
                 running = False
 
+            elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                if in_start_menu:
+                    mx, my = event.pos
+                    if start_menu_view == "high_scores":
+                        # Click on return button (btn_w=520, btn_h=46)
+                        bx = (SCREEN_WIDTH - 520) // 2
+                        by = ((VIEWPORT_HEIGHT - 470) // 2) + 470 - 46 - 20
+                        if bx <= mx <= bx + 520 and by <= my <= by + 46:
+                            start_menu_view = "main"
+                            audio.play_tick()
+                    else:
+                        # Click on one of the 3 menu cards (mw=540, mh=64, gap=14)
+                        card_x = (SCREEN_WIDTH - 540) // 2
+                        start_my = ((VIEWPORT_HEIGHT - 470) // 2) + 116
+                        for idx in range(3):
+                            card_y = start_my + idx * (64 + 14)
+                            if card_x <= mx <= card_x + 540 and card_y <= my <= card_y + 64:
+                                menu_selected_idx = idx
+                                if idx == 0:
+                                    game.restart(GameMode.CLASSIC)
+                                    in_start_menu = False
+                                    last_tick_second = -1
+                                elif idx == 1:
+                                    game.restart(GameMode.TIME_ATTACK)
+                                    in_start_menu = False
+                                    last_tick_second = -1
+                                elif idx == 2:
+                                    start_menu_view = "high_scores"
+                                    audio.play_tick()
+                                break
+
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
-                    running = False
+                    if in_start_menu and start_menu_view == "high_scores":
+                        start_menu_view = "main"
+                    else:
+                        running = False
 
                 # Audio mute toggle (B = Bruit / Musique)
                 elif event.key == pygame.K_b:
@@ -65,18 +100,41 @@ def main():
 
                 # START MENU CONTROLS
                 elif in_start_menu:
-                    if event.key == pygame.K_c:
-                        game.restart(GameMode.CLASSIC)
-                        in_start_menu = False
-                        last_tick_second = -1
-                    elif event.key == pygame.K_t:
-                        game.restart(GameMode.TIME_ATTACK)
-                        in_start_menu = False
-                        last_tick_second = -1
-                    elif event.key in (pygame.K_SPACE, pygame.K_RETURN):
-                        game.restart(selected_mode)
-                        in_start_menu = False
-                        last_tick_second = -1
+                    if start_menu_view == "high_scores":
+                        if event.key in (pygame.K_ESCAPE, pygame.K_RETURN, pygame.K_KP_ENTER, pygame.K_SPACE, pygame.K_h):
+                            start_menu_view = "main"
+                    else:
+                        if event.key in (pygame.K_UP, pygame.K_z, pygame.K_w):
+                            menu_selected_idx = (menu_selected_idx - 1) % 3
+                            audio.play_tick()
+                        elif event.key in (pygame.K_DOWN, pygame.K_s):
+                            menu_selected_idx = (menu_selected_idx + 1) % 3
+                            audio.play_tick()
+                        elif event.key == pygame.K_c:
+                            menu_selected_idx = 0
+                            game.restart(GameMode.CLASSIC)
+                            in_start_menu = False
+                            last_tick_second = -1
+                        elif event.key == pygame.K_t:
+                            menu_selected_idx = 1
+                            game.restart(GameMode.TIME_ATTACK)
+                            in_start_menu = False
+                            last_tick_second = -1
+                        elif event.key == pygame.K_h:
+                            start_menu_view = "high_scores"
+                            audio.play_tick()
+                        elif event.key in (pygame.K_SPACE, pygame.K_RETURN, pygame.K_KP_ENTER):
+                            if menu_selected_idx == 0:
+                                game.restart(GameMode.CLASSIC)
+                                in_start_menu = False
+                                last_tick_second = -1
+                            elif menu_selected_idx == 1:
+                                game.restart(GameMode.TIME_ATTACK)
+                                in_start_menu = False
+                                last_tick_second = -1
+                            elif menu_selected_idx == 2:
+                                start_menu_view = "high_scores"
+                                audio.play_tick()
 
                 # Death screen: 3-letter initials entry or restart
                 elif game.is_dead:
@@ -287,7 +345,14 @@ def main():
 
         # Render Start Screen, Game Over, or Pause screens
         if in_start_menu:
-            hud.draw_start_screen(screen, game.leaderboard, selected_mode)
+            selected_m = GameMode.CLASSIC if menu_selected_idx == 0 else GameMode.TIME_ATTACK
+            hud.draw_start_screen(
+                surface=screen,
+                leaderboard=game.leaderboard,
+                selected_mode=selected_m,
+                selected_index=menu_selected_idx,
+                menu_view=start_menu_view,
+            )
         elif game.is_dead:
             hud.draw_death_screen(
                 surface=screen,

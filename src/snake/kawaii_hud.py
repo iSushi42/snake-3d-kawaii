@@ -31,6 +31,7 @@ class KawaiiHUD:
             pygame.font.init()
         font_family = "DejaVu Sans, Arial, Helvetica, sans-serif"
         self.font_title_large = pygame.font.SysFont(font_family, 34, bold=True)
+        self.font_logo = pygame.font.SysFont(font_family, 48, bold=True)
         self.font_led_large = pygame.font.SysFont(font_family, 26, bold=True)
         self.font_label = pygame.font.SysFont(font_family, 11, bold=True)
         self.font_sub = pygame.font.SysFont(font_family, 14, bold=True)
@@ -487,13 +488,14 @@ class KawaiiHUD:
         surface: pygame.Surface,
         leaderboard: Union[Dict[str, List[dict]], List[dict]],
         selected_mode: GameMode = GameMode.CLASSIC,
+        selected_index: int = 0,
+        menu_view: str = "main",
     ):
-        """Displays cozy Kawaii title screen with split Leaderboards (Classique & Chrono) and mode selection."""
+        """Displays redesigned Kawaii title screen with 'Kawaii' logo + snake sprite, 3-item menu, or High Scores."""
         veil = pygame.Surface((SCREEN_WIDTH, VIEWPORT_HEIGHT), pygame.SRCALPHA)
         veil.fill((255, 242, 247, 230))
         surface.blit(veil, (0, 0))
 
-        # Main Card in center
         cw, ch = 780, 470
         cx = (SCREEN_WIDTH - cw) // 2
         cy = (VIEWPORT_HEIGHT - ch) // 2
@@ -501,88 +503,166 @@ class KawaiiHUD:
         pygame.draw.rect(surface, (255, 255, 255), card_rect, border_radius=24)
         pygame.draw.rect(surface, COLOR_STATUS_BAR_BORDER, card_rect, width=2, border_radius=24)
 
-        # Title
-        title = self.font_title_large.render("✧ BÉBÉ SNAKE 3D KAWAII ✧", True, (245, 110, 140))
-        tx = (SCREEN_WIDTH - title.get_width()) // 2
-        surface.blit(title, (tx, cy + 16))
+        if menu_view == "high_scores":
+            # --- HIGH SCORES VIEW: Side-by-side Tables ---
+            title = self.font_title_large.render("✧ TABLEAUX DES MEILLEURS SCORES ✧", True, (245, 110, 140))
+            tx = (SCREEN_WIDTH - title.get_width()) // 2
+            surface.blit(title, (tx, cy + 16))
 
-        # Subtitle
-        sub = self.font_sub.render("Tableaux des Meilleurs Scores & Choix du Mode", True, (130, 95, 175))
-        sx = (SCREEN_WIDTH - sub.get_width()) // 2
-        surface.blit(sub, (sx, cy + 54))
+            sub = self.font_sub.render("Panthéon des Joueurs & Records Arcade", True, (130, 95, 175))
+            sx = (SCREEN_WIDTH - sub.get_width()) // 2
+            surface.blit(sub, (sx, cy + 54))
 
-        # Split leaderboards
-        if isinstance(leaderboard, dict):
-            classic_lb = leaderboard.get("Classique", [])
-            chrono_lb = leaderboard.get("Chrono", [])
+            if isinstance(leaderboard, dict):
+                classic_lb = leaderboard.get("Classique", [])
+                chrono_lb = leaderboard.get("Chrono", [])
+            else:
+                classic_lb = [e for e in leaderboard if e.get("mode") == "Classique"]
+                chrono_lb = [e for e in leaderboard if e.get("mode") == "Chrono"]
+
+            tw, th = 355, 230
+            t1_x = cx + 22
+            t1_y = cy + 86
+            self._draw_mini_table(
+                surface=surface,
+                x=t1_x,
+                y=t1_y,
+                w=tw,
+                h=th,
+                title="✦ MODE CLASSIQUE ✦",
+                title_color=(235, 100, 135),
+                entries=classic_lb,
+                is_active=(selected_mode == GameMode.CLASSIC),
+            )
+
+            t2_x = cx + cw - tw - 22
+            t2_y = cy + 86
+            self._draw_mini_table(
+                surface=surface,
+                x=t2_x,
+                y=t2_y,
+                w=tw,
+                h=th,
+                title="✦ CONTRE-LA-MONTRE ✦",
+                title_color=(230, 115, 50),
+                entries=chrono_lb,
+                is_active=(selected_mode == GameMode.TIME_ATTACK),
+            )
+
+            # Return button
+            btn_w, btn_h = 520, 46
+            bx = cx + (cw - btn_w) // 2
+            by = cy + ch - btn_h - 20
+            btn_rect = pygame.Rect(bx, by, btn_w, btn_h)
+            pygame.draw.rect(surface, (255, 140, 165), btn_rect, border_radius=23)
+            ret_txt = self.font_prompt.render("✦ [ Échap ] ou [ Entrée ] Retour au Menu Principal ✦", True, (255, 255, 255))
+            surface.blit(ret_txt, (bx + (btn_w - ret_txt.get_width()) // 2, by + 13))
+
         else:
-            classic_lb = [e for e in leaderboard if e.get("mode") == "Classique"]
-            chrono_lb = [e for e in leaderboard if e.get("mode") == "Chrono"]
+            # --- MAIN TITLE SCREEN: Logo "Kawaii" + Snake Sprite & 3-item Menu ---
+            txt_kawaii = self.font_logo.render("Kawaii", True, (248, 100, 140))
+            shadow_kawaii = self.font_logo.render("Kawaii", True, (255, 205, 220))
 
-        # Table 1: Classique
-        tw, th = 355, 230
-        t1_x = cx + 22
-        t1_y = cy + 86
-        self._draw_mini_table(
-            surface=surface,
-            x=t1_x,
-            y=t1_y,
-            w=tw,
-            h=th,
-            title="✦ MODE CLASSIQUE ✦",
-            title_color=(235, 100, 135),
-            entries=classic_lb,
-            is_active=(selected_mode == GameMode.CLASSIC),
-        )
+            # Mascot snake composition
+            snake_sz = 52
+            snake_mascot = pygame.transform.scale(self.textures.sprite_snake_head, (snake_sz, snake_sz))
+            segment_mascot = pygame.transform.scale(self.textures.sprite_segment, (30, 30))
+            apple_mascot = pygame.transform.scale(self.textures.sprite_apple, (24, 24))
 
-        # Table 2: Chrono
-        t2_x = cx + cw - tw - 22
-        t2_y = cy + 86
-        self._draw_mini_table(
-            surface=surface,
-            x=t2_x,
-            y=t2_y,
-            w=tw,
-            h=th,
-            title="✦ CONTRE-LA-MONTRE ✦",
-            title_color=(230, 115, 50),
-            entries=chrono_lb,
-            is_active=(selected_mode == GameMode.TIME_ATTACK),
-        )
+            mascot_w = 76
+            logo_gap = 16
+            total_logo_w = txt_kawaii.get_width() + logo_gap + mascot_w
+            start_logo_x = cx + (cw - total_logo_w) // 2
+            logo_y = cy + 18
 
-        # Mode Selection Cards at the bottom
-        btn_y = cy + 328
-        btn_w, btn_h = 355, 54
+            bob_y = int(math.sin(pygame.time.get_ticks() / 240.0) * 3.5)
 
-        # Button 1: Mode Classique
-        b1_rect = pygame.Rect(t1_x, btn_y, btn_w, btn_h)
-        b1_bg = (255, 140, 165) if selected_mode == GameMode.CLASSIC else (255, 238, 242)
-        b1_border = (245, 100, 130) if selected_mode == GameMode.CLASSIC else COLOR_STATUS_BAR_BORDER
-        b1_txt_col = (255, 255, 255) if selected_mode == GameMode.CLASSIC else COLOR_TEXT_MAIN
-        pygame.draw.rect(surface, b1_bg, b1_rect, border_radius=20)
-        pygame.draw.rect(surface, b1_border, b1_rect, width=2, border_radius=20)
+            # Draw Logo text
+            surface.blit(shadow_kawaii, (start_logo_x + 2, logo_y + 2))
+            surface.blit(txt_kawaii, (start_logo_x, logo_y))
 
-        t1_main = self.font_prompt.render("[ C ] Mode Classique", True, b1_txt_col)
-        t1_sub = self.font_label.render("Vitesse progressive tous les 5 pts", True, (255, 240, 245) if selected_mode == GameMode.CLASSIC else COLOR_TEXT_MUTED)
-        surface.blit(t1_main, (t1_x + (btn_w - t1_main.get_width()) // 2, btn_y + 8))
-        surface.blit(t1_sub, (t1_x + (btn_w - t1_sub.get_width()) // 2, btn_y + 30))
+            # Draw Snake mascot next to "Kawaii"
+            mascot_x = start_logo_x + txt_kawaii.get_width() + logo_gap
+            surface.blit(segment_mascot, (mascot_x + 36, logo_y + 14 + bob_y))
+            surface.blit(apple_mascot, (mascot_x + 48, logo_y + 2 + bob_y))
+            surface.blit(snake_mascot, (mascot_x, logo_y + 2 + bob_y))
 
-        # Button 2: Mode Contre-la-montre
-        b2_rect = pygame.Rect(t2_x, btn_y, btn_w, btn_h)
-        b2_bg = (255, 140, 165) if selected_mode == GameMode.TIME_ATTACK else (255, 238, 242)
-        b2_border = (245, 100, 130) if selected_mode == GameMode.TIME_ATTACK else COLOR_STATUS_BAR_BORDER
-        b2_txt_col = (255, 255, 255) if selected_mode == GameMode.TIME_ATTACK else COLOR_TEXT_MAIN
-        pygame.draw.rect(surface, b2_bg, b2_rect, border_radius=20)
-        pygame.draw.rect(surface, b2_border, b2_rect, width=2, border_radius=20)
+            # Subtitle
+            sub = self.font_sub.render("✧ BÉBÉ SNAKE 3D ✧", True, (135, 95, 180))
+            surface.blit(sub, (cx + (cw - sub.get_width()) // 2, cy + 76))
 
-        t2_main = self.font_prompt.render("[ T ] Contre-la-montre", True, b2_txt_col)
-        t2_sub = self.font_label.render("10s chrono, +5s par pomme", True, (255, 240, 245) if selected_mode == GameMode.TIME_ATTACK else COLOR_TEXT_MUTED)
-        surface.blit(t2_main, (t2_x + (btn_w - t2_main.get_width()) // 2, btn_y + 8))
-        surface.blit(t2_sub, (t2_x + (btn_w - t2_sub.get_width()) // 2, btn_y + 30))
+            # Menu Options: 1. Classique, 2. Contre la montre, 3. High score
+            menu_items = [
+                {
+                    "title": "Mode Classique",
+                    "sub": "Vitesse progressive tous les 5 points  •  3 Mondes cycliques",
+                    "key": "[ C ]",
+                },
+                {
+                    "title": "Contre-la-montre",
+                    "sub": "10s chrono initiales  •  +5s par pomme ramassée",
+                    "key": "[ T ]",
+                },
+                {
+                    "title": "Meilleurs Scores",
+                    "sub": "Consulter les tableaux des records & initiales (High Score)",
+                    "key": "[ H ]",
+                },
+            ]
 
-        # Start prompt helper
-        start_hint = self.font_label.render("Appuyez sur [ C ] ou [ T ] pour choisir et lancer  •  [ Espace ] pour lancer", True, (150, 140, 160))
-        surface.blit(start_hint, (cx + (cw - start_hint.get_width()) // 2, cy + 404))
+            mw, mh = 540, 64
+            mx = cx + (cw - mw) // 2
+            start_my = cy + 116
+            gap = 14
+
+            for idx, item in enumerate(menu_items):
+                iy = start_my + idx * (mh + gap)
+                item_rect = pygame.Rect(mx, iy, mw, mh)
+                is_sel = (idx == selected_index)
+
+                if is_sel:
+                    pygame.draw.rect(surface, (255, 138, 165), item_rect, border_radius=20)
+                    pygame.draw.rect(surface, (245, 95, 125), item_rect, width=2, border_radius=20)
+
+                    pulse = int(math.sin(pygame.time.get_ticks() / 150.0) * 3)
+                    cursor_txt = self.font_prompt.render("▶", True, (255, 255, 255))
+                    surface.blit(cursor_txt, (mx + 18 + pulse, iy + 14))
+
+                    t_surf = self.font_prompt.render(item["title"], True, (255, 255, 255))
+                    s_surf = self.font_label.render(item["sub"], True, (255, 238, 245))
+
+                    k_surf = self.font_label.render(item["key"], True, (250, 100, 135))
+                    k_rect = pygame.Rect(mx + mw - 58, iy + 19, 44, 26)
+                    pygame.draw.rect(surface, (255, 255, 255), k_rect, border_radius=13)
+                    surface.blit(k_surf, (k_rect.x + (k_rect.width - k_surf.get_width()) // 2, k_rect.y + 6))
+                else:
+                    pygame.draw.rect(surface, (255, 250, 252), item_rect, border_radius=20)
+                    pygame.draw.rect(surface, (245, 215, 225), item_rect, width=1, border_radius=20)
+
+                    dot_txt = self.font_prompt.render("✦", True, (220, 180, 205))
+                    surface.blit(dot_txt, (mx + 18, iy + 14))
+
+                    t_surf = self.font_prompt.render(item["title"], True, (85, 75, 95))
+                    s_surf = self.font_label.render(item["sub"], True, (155, 145, 170))
+
+                    k_surf = self.font_label.render(item["key"], True, (155, 145, 170))
+                    k_rect = pygame.Rect(mx + mw - 58, iy + 19, 44, 26)
+                    pygame.draw.rect(surface, (252, 242, 247), k_rect, border_radius=13)
+                    surface.blit(k_surf, (k_rect.x + (k_rect.width - k_surf.get_width()) // 2, k_rect.y + 6))
+
+                surface.blit(t_surf, (mx + 46, iy + 12))
+                surface.blit(s_surf, (mx + 46, iy + 36))
+
+            # Footer
+            footer_w, footer_h = 580, 36
+            fx = cx + (cw - footer_w) // 2
+            fy = cy + ch - footer_h - 22
+            footer_rect = pygame.Rect(fx, fy, footer_w, footer_h)
+            pygame.draw.rect(surface, (255, 242, 247), footer_rect, border_radius=18)
+            pygame.draw.rect(surface, COLOR_STATUS_BAR_BORDER, footer_rect, width=1, border_radius=18)
+
+            hint_txt = self.font_label.render("Utilisez [ ↑ / ↓ ] pour naviguer  •  [ Entrée ] pour valider  •  [ B ] Son", True, (140, 110, 165))
+            surface.blit(hint_txt, (fx + (footer_w - hint_txt.get_width()) // 2, fy + 10))
 
     def draw_death_screen(
         self,

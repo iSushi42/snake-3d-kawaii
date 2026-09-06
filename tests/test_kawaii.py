@@ -722,4 +722,44 @@ def test_pacifier_textures_and_hud_banners():
     )
 
 
+def test_title_screen_redesign():
+    import pygame
+    from snake.kawaii_config import GameMode, SCREEN_WIDTH, SCREEN_HEIGHT
+    from snake.kawaii_hud import KawaiiHUD
+    from snake.kawaii_textures import TextureManager
+
+    textures = TextureManager()
+    hud = KawaiiHUD(textures)
+    surface = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
+
+    fake_lb = {
+        "Classique": [{"score": 30, "mode": "Classique", "level": 3, "player": "ABC", "date": "06/09 18:30"}],
+        "Chrono": [{"score": 25, "mode": "Chrono", "level": 2, "player": "XYZ", "date": "06/09 18:35"}],
+    }
+
+    # Verify font_logo attribute exists
+    assert hasattr(hud, "font_logo")
+    assert hud.font_logo is not None
+
+    # Test main title screen with each selectable item highlighted
+    for sel_idx in (0, 1, 2):
+        hud.draw_start_screen(
+            surface=surface,
+            leaderboard=fake_lb,
+            selected_mode=GameMode.CLASSIC,
+            selected_index=sel_idx,
+            menu_view="main",
+        )
+
+    # Test high scores view
+    hud.draw_start_screen(
+        surface=surface,
+        leaderboard=fake_lb,
+        selected_mode=GameMode.CLASSIC,
+        selected_index=2,
+        menu_view="high_scores",
+    )
+
+
+
 
