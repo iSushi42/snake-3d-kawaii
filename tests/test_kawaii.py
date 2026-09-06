@@ -289,12 +289,14 @@ def test_doom_leaderboard_sorting_and_limit(tmp_path, monkeypatch):
     game.score = 12
     game.game_mode = dg.GameMode.TIME_ATTACK
     game._trigger_death("Temps écoulé !")
+    game.submit_initials("TST")
 
     assert "Chrono" in game.leaderboard
     assert "Classique" in game.leaderboard
     assert len(game.leaderboard["Chrono"]) == 1
     assert game.leaderboard["Chrono"][0]["score"] == 12
     assert game.leaderboard["Chrono"][0]["mode"] == "Chrono"
+    assert game.leaderboard["Chrono"][0]["player"] == "TST"
     assert len(game.leaderboard["Classique"]) == 0
 
     # Add more Chrono scores
@@ -504,4 +506,111 @@ def test_panoramic_sky_clouds():
             )
             assert surf is not None
             assert surf.get_size() == (320, 170)
+
+
+def test_player_initials_input_and_submission(tmp_path, monkeypatch):
+    import snake.kawaii_game as dg
+
+    test_lb_file = tmp_path / "test_initials_lb.json"
+    monkeypatch.setattr(dg, "LEADERBOARD_FILE", test_lb_file)
+
+    game = dg.KawaiiSnakeGame()
+    game.score = 42
+
+    # Typing letters
+    game.add_initial_char("b")
+    game.add_initial_char("o")
+    game.add_initial_char("b")
+    # Exceeding 3 chars or non-alpha should be ignored
+    game.add_initial_char("s")
+    game.add_initial_char("1")
+    assert game.player_initials == "BOB"
+
+    # Backspace
+    game.remove_initial_char()
+    assert game.player_initials == "BO"
+    game.add_initial_char("y")
+    assert game.player_initials == "BOY"
+
+    # Submit
+    game.submit_initials()
+    assert game.initials_submitted
+    assert len(game.leaderboard["Classique"]) == 1
+    assert game.leaderboard["Classique"][0]["player"] == "BOY"
+    assert game.leaderboard["Classique"][0]["score"] == 42
+
+    # Subsequent keystrokes should be ignored once submitted
+    game.add_initial_char("z")
+    game.remove_initial_char()
+    assert game.player_initials == "BOY"
+
+
+def test_player_initials_auto_submit_on_restart(tmp_path, monkeypatch):
+    import snake.kawaii_game as dg
+
+    test_lb_file = tmp_path / "test_initials_auto.json"
+    monkeypatch.setattr(dg, "LEADERBOARD_FILE", test_lb_file)
+
+    game = dg.KawaiiSnakeGame()
+    game.score = 50
+    game.is_dead = True
+    game.player_initials = "VI"  # only 2 chars typed
+
+    # Restart without explicit submit -> should auto-submit padded with 'A's ("VIA")
+    game.restart()
+    assert len(game.leaderboard["Classique"]) == 1
+    assert game.leaderboard["Classique"][0]["player"] == "VIA"
+    assert game.leaderboard["Classique"][0]["score"] == 50
+    assert not game.is_dead
+    assert game.player_initials == ""
+    assert not game.initials_submitted
+
+
+def test_death_screen_renders_initials_input_and_nom_column():
+    import pygame
+    from snake.kawaii_config import GameMode, SCREEN_WIDTH, SCREEN_HEIGHT
+    from snake.kawaii_hud import KawaiiHUD
+    from snake.kawaii_textures import TextureManager
+
+    textures = TextureManager()
+    hud = KawaiiHUD(textures)
+    surface = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
+
+    fake_lb = {
+        "Classique": [
+            {"score": 30, "mode": "Classique", "level": 3, "player": "ALX", "date": "06/09 18:30"},
+            {"score": 15, "mode": "Classique", "level": 2, "date": "06/09 18:25"},  # legacy without player
+        ],
+        "Chrono": [
+            {"score": 25, "mode": "Chrono", "level": 2, "player": "MAX", "date": "06/09 18:35"},
+        ],
+    }
+
+    # Render with pending input
+    hud.draw_death_screen(
+        surface=surface,
+        score=30,
+        high_score=30,
+        game_mode=GameMode.CLASSIC,
+        death_reason="Mur heurté !",
+        leaderboard=fake_lb,
+        player_initials="AB",
+        initials_submitted=False,
+    )
+
+    # Render with submitted confirmation
+    hud.draw_death_screen(
+        surface=surface,
+        score=30,
+        high_score=30,
+        game_mode=GameMode.CLASSIC,
+        death_reason="Mur heurté !",
+        leaderboard=fake_lb,
+        player_initials="ABC",
+        initials_submitted=True,
+    )
+
+    # Verify start screen also renders with the NOM column properly
+    hud.draw_start_screen(surface=surface, leaderboard=fake_lb, selected_mode=GameMode.CLASSIC)
+
 

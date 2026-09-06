@@ -77,18 +77,28 @@ def main():
                         in_start_menu = False
                         last_tick_second = -1
 
-                # Restart options when dead
-                elif game.is_dead and event.key in (pygame.K_r, pygame.K_SPACE, pygame.K_RETURN):
-                    game.restart()
-                    last_tick_second = -1
-
-                elif game.is_dead and event.key == pygame.K_c:
-                    game.restart(GameMode.CLASSIC)
-                    last_tick_second = -1
-
-                elif game.is_dead and event.key == pygame.K_t:
-                    game.restart(GameMode.TIME_ATTACK)
-                    last_tick_second = -1
+                # Death screen: 3-letter initials entry or restart
+                elif game.is_dead:
+                    if not game.initials_submitted:
+                        if event.key == pygame.K_BACKSPACE:
+                            game.remove_initial_char()
+                        elif event.key in (pygame.K_RETURN, pygame.K_KP_ENTER):
+                            game.submit_initials()
+                        elif event.key == pygame.K_ESCAPE:
+                            game.restart()
+                            last_tick_second = -1
+                        elif event.unicode and event.unicode.isalpha() and len(event.unicode) == 1:
+                            game.add_initial_char(event.unicode)
+                    else:
+                        if event.key in (pygame.K_r, pygame.K_SPACE, pygame.K_RETURN, pygame.K_KP_ENTER):
+                            game.restart()
+                            last_tick_second = -1
+                        elif event.key == pygame.K_c:
+                            game.restart(GameMode.CLASSIC)
+                            last_tick_second = -1
+                        elif event.key == pygame.K_t:
+                            game.restart(GameMode.TIME_ATTACK)
+                            last_tick_second = -1
 
                 # Pause toggle
                 elif not in_start_menu and not game.is_dead and event.key in (pygame.K_p, pygame.K_SPACE):
@@ -265,6 +275,8 @@ def main():
                 game_mode=game.game_mode,
                 death_reason=game.death_reason,
                 leaderboard=game.leaderboard,
+                player_initials=game.player_initials,
+                initials_submitted=game.initials_submitted,
             )
         elif game.is_paused:
             hud.draw_pause_screen(screen)

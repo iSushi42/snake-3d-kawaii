@@ -361,14 +361,16 @@ class KawaiiHUD:
         # Column headers
         h_y = y + 36
         h_pos = self.font_label.render("RANG", True, COLOR_TEXT_MUTED)
+        h_nom = self.font_label.render("NOM", True, COLOR_TEXT_MUTED)
         h_score = self.font_label.render("SCORE", True, COLOR_TEXT_MUTED)
         h_level = self.font_label.render("NIV", True, COLOR_TEXT_MUTED)
         h_date = self.font_label.render("DATE", True, COLOR_TEXT_MUTED)
 
-        surface.blit(h_pos, (x + 16, h_y))
-        surface.blit(h_score, (x + 65, h_y))
-        surface.blit(h_level, (x + 155, h_y))
-        surface.blit(h_date, (x + 245, h_y))
+        surface.blit(h_pos, (x + 14, h_y))
+        surface.blit(h_nom, (x + 58, h_y))
+        surface.blit(h_score, (x + 110, h_y))
+        surface.blit(h_level, (x + 185, h_y))
+        surface.blit(h_date, (x + 248, h_y))
 
         pygame.draw.line(surface, COLOR_STATUS_BAR_BORDER, (x + 10, h_y + 18), (x + w - 10, h_y + 18), 1)
 
@@ -380,6 +382,7 @@ class KawaiiHUD:
             highlighted = False
             for idx, entry in enumerate(entries[:5]):
                 row_y = h_y + 24 + idx * 30
+                e_player = (str(entry.get("player") or "---")).strip().upper()[:3]
                 e_score = entry.get("score", 0)
                 e_level = entry.get("level", 1)
                 e_date = entry.get("date", "")
@@ -392,14 +395,16 @@ class KawaiiHUD:
                     pygame.draw.rect(surface, (255, 195, 212), hl_rect, width=1, border_radius=8)
 
                 rank_txt = self.font_table.render(f"#{idx + 1}", True, (245, 110, 140) if idx == 0 else COLOR_TEXT_MAIN)
+                nom_txt = self.font_table.render(f"{e_player}", True, (135, 95, 185))
                 score_txt = self.font_table.render(f"{e_score} pts", True, COLOR_LED_RED)
                 lvl_txt = self.font_table.render(f"Nv.{e_level}", True, COLOR_LED_AMBER)
                 date_txt = self.font_table_date.render(f"{e_date}", True, COLOR_TEXT_MUTED)
 
-                surface.blit(rank_txt, (x + 16, row_y + 2))
-                surface.blit(score_txt, (x + 65, row_y + 2))
-                surface.blit(lvl_txt, (x + 155, row_y + 2))
-                surface.blit(date_txt, (x + 245, row_y + 3))
+                surface.blit(rank_txt, (x + 14, row_y + 2))
+                surface.blit(nom_txt, (x + 58, row_y + 2))
+                surface.blit(score_txt, (x + 110, row_y + 2))
+                surface.blit(lvl_txt, (x + 185, row_y + 2))
+                surface.blit(date_txt, (x + 248, row_y + 3))
 
     def draw_start_screen(
         self,
@@ -511,8 +516,10 @@ class KawaiiHUD:
         game_mode: GameMode,
         death_reason: str,
         leaderboard: Union[Dict[str, List[dict]], List[dict]],
+        player_initials: str = "",
+        initials_submitted: bool = False,
     ):
-        """Displays cozy death screen with side-by-side Leaderboards (Classique & Chrono)."""
+        """Displays cozy death screen with side-by-side Leaderboards (Classique & Chrono) and initials input."""
         veil = pygame.Surface((SCREEN_WIDTH, VIEWPORT_HEIGHT), pygame.SRCALPHA)
         veil.fill((255, 238, 245, 220))
         surface.blit(veil, (0, 0))
@@ -579,17 +586,75 @@ class KawaiiHUD:
             is_active=(game_mode == GameMode.TIME_ATTACK),
         )
 
-        # Replay / Action prompt bar
-        btn_w, btn_h = 736, 48
+        # Initials entry / Confirmation area (between tables and bottom prompt bar)
+        btn_w, btn_h = 736, 44
         bx = cx + (cw - btn_w) // 2
-        by = cy + ch - btn_h - 22
+        by = cy + ch - btn_h - 14
         btn_rect = pygame.Rect(bx, by, btn_w, btn_h)
-        pygame.draw.rect(surface, (255, 140, 165), btn_rect, border_radius=24)
 
-        prompt_text = "[R] Rejouer   •   [C] Classique   •   [T] Chrono"
-        p_surf = self.font_prompt.render(prompt_text, True, (255, 255, 255))
-        px = (SCREEN_WIDTH - p_surf.get_width()) // 2
-        surface.blit(p_surf, (px, by + 14))
+        if not initials_submitted:
+            # Header prompt for 3 initials
+            hint_surf = self.font_label.render("✦ Tapez 3 lettres pour inscrire votre nom au classement ✦", True, (135, 95, 185))
+            surface.blit(hint_surf, (cx + (cw - hint_surf.get_width()) // 2, cy + 324))
+
+            # 3 letter boxes
+            box_w, box_h = 42, 38
+            box_gap = 10
+            total_boxes_w = 3 * box_w + 2 * box_gap
+            start_bx = cx + (cw - total_boxes_w) // 2
+            box_y = cy + 346
+
+            for i in range(3):
+                bx_i = start_bx + i * (box_w + box_gap)
+                b_rect = pygame.Rect(bx_i, box_y, box_w, box_h)
+
+                if i < len(player_initials):
+                    # Letter entered
+                    pygame.draw.rect(surface, (255, 238, 245), b_rect, border_radius=10)
+                    pygame.draw.rect(surface, (255, 130, 165), b_rect, width=2, border_radius=10)
+                    char_surf = self.font_led_large.render(player_initials[i], True, (245, 90, 130))
+                    surface.blit(char_surf, (bx_i + (box_w - char_surf.get_width()) // 2, box_y + (box_h - char_surf.get_height()) // 2))
+                elif i == len(player_initials):
+                    # Active cursor box
+                    blink = (pygame.time.get_ticks() // 350) % 2 == 0
+                    border_col = (255, 120, 150) if blink else (230, 180, 205)
+                    bg_col = (255, 255, 255) if blink else (255, 248, 250)
+                    pygame.draw.rect(surface, bg_col, b_rect, border_radius=10)
+                    pygame.draw.rect(surface, border_col, b_rect, width=2, border_radius=10)
+                    if blink:
+                        cursor_surf = self.font_led_large.render("_", True, (245, 100, 135))
+                        surface.blit(cursor_surf, (bx_i + (box_w - cursor_surf.get_width()) // 2, box_y + (box_h - cursor_surf.get_height()) // 2 - 4))
+                else:
+                    # Empty awaiting box
+                    pygame.draw.rect(surface, (250, 248, 252), b_rect, border_radius=10)
+                    pygame.draw.rect(surface, (225, 215, 230), b_rect, width=1, border_radius=10)
+                    dot_surf = self.font_led_large.render("·", True, (210, 200, 220))
+                    surface.blit(dot_surf, (bx_i + (box_w - dot_surf.get_width()) // 2, box_y + (box_h - dot_surf.get_height()) // 2 - 4))
+
+            # Bottom action bar for entry mode
+            pygame.draw.rect(surface, (255, 130, 160), btn_rect, border_radius=22)
+            prompt_text = "[ Entrée ] Valider vos 3 lettres   •   [ Effacer ] Corriger   •   [ Echap ] Passer"
+            p_surf = self.font_prompt.render(prompt_text, True, (255, 255, 255))
+            surface.blit(p_surf, (cx + (cw - p_surf.get_width()) // 2, by + 12))
+        else:
+            # Confirmed pill banner
+            pill_w, pill_h = 440, 40
+            pill_x = cx + (cw - pill_w) // 2
+            pill_y = cy + 342
+            pill_rect = pygame.Rect(pill_x, pill_y, pill_w, pill_h)
+            pygame.draw.rect(surface, (236, 252, 242), pill_rect, border_radius=20)
+            pygame.draw.rect(surface, (110, 210, 150), pill_rect, width=2, border_radius=20)
+
+            display_name = player_initials or "AAA"
+            c_txt = f"✦ Score enregistré pour [ {display_name} ] ! ✦"
+            c_surf = self.font_sub.render(c_txt, True, (40, 140, 80))
+            surface.blit(c_surf, (pill_x + (pill_w - c_surf.get_width()) // 2, pill_y + 11))
+
+            # Bottom action bar for replay mode
+            pygame.draw.rect(surface, (255, 140, 165), btn_rect, border_radius=22)
+            prompt_text = "[ R ] Rejouer   •   [ C ] Mode Classique   •   [ T ] Contre-la-montre"
+            p_surf = self.font_prompt.render(prompt_text, True, (255, 255, 255))
+            surface.blit(p_surf, (cx + (cw - p_surf.get_width()) // 2, by + 12))
 
     def draw_pause_screen(self, surface: pygame.Surface):
         veil = pygame.Surface((SCREEN_WIDTH, VIEWPORT_HEIGHT), pygame.SRCALPHA)

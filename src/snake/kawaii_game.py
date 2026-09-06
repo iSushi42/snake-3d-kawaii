@@ -76,6 +76,9 @@ class KawaiiSnakeGame:
         self.score: int = 0
         self.high_score: int = self._load_high_score()
         self.leaderboard: List[dict] = self._load_leaderboard()
+        self.player_initials: str = ""
+        self.initials_submitted: bool = False
+        self.last_player_name: str = "AAA"
         self.is_dead: bool = False
         self.is_paused: bool = False
 
@@ -148,7 +151,33 @@ class KawaiiSnakeGame:
         if not self.is_dead:
             self.is_paused = not self.is_paused
 
+    def add_initial_char(self, char: str):
+        """Appends one uppercase letter if fewer than 3 characters."""
+        if not self.initials_submitted and len(self.player_initials) < 3 and char.isalpha():
+            self.player_initials += char.upper()
+
+    def remove_initial_char(self):
+        """Deletes the last typed initial character."""
+        if not self.initials_submitted and len(self.player_initials) > 0:
+            self.player_initials = self.player_initials[:-1]
+
+    def submit_initials(self, default_name: str | None = None):
+        """Submits player initials and records the score in the leaderboard."""
+        if not self.initials_submitted:
+            name = self.player_initials.strip().upper()
+            if not name:
+                name = default_name.strip().upper() if default_name else (self.last_player_name or "AAA")
+            name = (name + "AAA")[:3]
+            self.player_initials = name
+            self.last_player_name = name
+            self._record_leaderboard_entry(player_name=name)
+            self.initials_submitted = True
+
     def restart(self, mode: GameMode | None = None):
+        if self.is_dead and not self.initials_submitted:
+            self.submit_initials(default_name=self.last_player_name or "AAA")
+        self.player_initials = ""
+        self.initials_submitted = False
         if mode is not None:
             self.game_mode = mode
         self.head_x = 8.5
@@ -307,7 +336,8 @@ class KawaiiSnakeGame:
         self.flash_color = (255, 175, 195, 110)
         self.flash_timer = 0.45
         self._save_high_score()
-        self._record_leaderboard_entry()
+        self.player_initials = ""
+        self.initials_submitted = False
 
     def _load_leaderboard(self) -> Dict[str, List[dict]]:
         default_lb = {"Classique": [], "Chrono": []}
@@ -333,13 +363,14 @@ class KawaiiSnakeGame:
             pass
         return default_lb
 
-    def _record_leaderboard_entry(self):
+    def _record_leaderboard_entry(self, player_name: str = "AAA"):
         from datetime import datetime
         mode_key = self.game_mode.value  # "Classique" or "Chrono"
         entry = {
             "score": self.score,
             "mode": mode_key,
             "level": self.speed_level,
+            "player": (player_name.strip().upper() + "AAA")[:3],
             "date": datetime.now().strftime("%d/%m %H:%M"),
         }
         if mode_key not in self.leaderboard:
@@ -349,6 +380,8 @@ class KawaiiSnakeGame:
         self.leaderboard[mode_key] = self.leaderboard[mode_key][:5]
         try:
             LEADERBOARD_FILE.write_text(json.dumps(self.leaderboard, indent=2, ensure_ascii=False), encoding="utf-8")
+        except Exception:
+            pass
         except Exception:
             pass
 
